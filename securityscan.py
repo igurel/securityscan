@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 ###############################################################################
 #
 # usage: securityscan.py [-h] --arch ARCH --config CONFIG --policy POLICY
@@ -118,7 +117,6 @@ class SecurityChecker():
                     error("Parsing policy file failed..")
                     sys.exit()
             return policy
-
 
 
         def print_certificate(self, file):
