@@ -1,7 +1,7 @@
 # Linux Security Hardening Scanning Tool
 ## Introduction ##
-**securityscan.py** is a tool writen in Python and checks the followig Linix security hardening options:
-* checks the Linux kernel config options (according to the list given by [Kernel Self Protection Project](https://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project)). The black list is configurable in policy.json
+**securityscan.py** is a tool writen in Python and checks the followig Linux security hardening options:
+* checks the Linux kernel config options (according to the list given by [Kernel Self Protection Project](https://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project)). The black list and other configuration options are configurable in policy.json
 * checks loaded kernel modules
   * shows the number of dynamically loaded modules
   * alerts if blacklisted modules are loaded
