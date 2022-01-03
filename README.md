@@ -12,7 +12,7 @@
 * scans executables
   * alerts if they are built without PIE, relro, stack protectors,..
 * scans the file system and finds X509 certificates that will expire in a year or use weak keys
-* checks vulnerabilities (*/sys/devices/system/cpu/vulnerabilities/*)
+* checks vulnerabilities ("*/sys/devices/system/cpu/vulnerabilities/*")
 * Does system security hardening checks
   * "*/dev/kmem*" and "*/proc/kcore*" are disabled
   * ASLR (Address Space Layout Randomization) settings ("*/proc/sys/kernel/randomize_va_space*")
@@ -54,8 +54,8 @@
       net.ipv4.tcp_syncookies = 1
 
 ## Setup
----
-$ sudo pip3 install unicorn psutil pyopenssl python-dateutil pwntools rich 
+
+      $ sudo pip3 install unicorn psutil pyopenssl python-dateutil pwntools rich 
 
 ## Usage
       usage: securityscan.py [-h] --arch ARCH --config CONFIG --policy POLICY
@@ -76,7 +76,8 @@ $ sudo pip3 install unicorn psutil pyopenssl python-dateutil pwntools rich
       --sys            Run system checks
 
 ## Sample usage ##
-    $ sudo ./securityscan.py  --arch x86 --config /boot/config-5.11.0-43-generic --policy policy.json  --kernel --dmesg --proc --exec --vuln --cert --sys
+
+      $ sudo ./securityscan.py  --arch x86 --config /boot/config-5.11.0-43-generic --policy policy.json  --kernel --dmesg --proc --exec --vuln --cert --sys
 
 ## Sample usage screenshot
 
@@ -91,3 +92,5 @@ $ sudo pip3 install unicorn psutil pyopenssl python-dateutil pwntools rich
 * [Project Zero: How a simple Linux kernel memory corruption bug can lead to complete system compromise](https://googleprojectzero.blogspot.com/2021/10/how-simple-linux-kernel-memory.html)
 * [GitHub - a13xp0p0v/Linux Kernel Defense Map](https://github.com/a13xp0p0v/linux-kernel-defence-map)
 * [GitHub - a13xp0p0v/kconfig-hardened-check: A tool for checking the security hardening options of the Linux kernel](https://github.com/a13xp0p0v/kconfig-hardened-check)
+* [SUSE Linux Enterprise Server 12 SP4 - Hardening Guide](https://documentation.suse.com/sles/12-SP4/pdf/book-hardening_color_en.pdf)
+
