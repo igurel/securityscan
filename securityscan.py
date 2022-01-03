@@ -265,7 +265,7 @@ class SecurityChecker():
                     root_proc_list.append(proc.name())
                     proc_count += 1
 
-            self.info("Detected %s root processes (inc. kernel threats and user space root processes)" % (proc_count))
+            self.info("Detected %s root processes (inc. kernel threads and user space root processes)" % (proc_count))
 
             for root_proc in root_proc_list:
                 for bl_proc  in policy['process']['root']['blacklist']:
