@@ -80,7 +80,7 @@ $ sudo pip3 install unicorn psutil pyopenssl python-dateutil pwntools rich
 
 ## Sample usage screenshot
 
-![Screenshot from 2022-01-03 19-01-54](https://user-images.githubusercontent.com/5366714/147958858-7b9328e8-ca4e-42e8-9ebb-59e29f9ed29d.png)
+![Screenshot from 2022-01-03 19-01-54](https://user-images.githubusercontent.com/5366714/147969353-6c29ee38-1ef1-488c-b8dc-6bcdbb5cfdeb.png)
 )
 
 ## The relevant links ##
