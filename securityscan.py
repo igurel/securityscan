@@ -21,7 +21,7 @@
 # Sample usage:
 # sudo ./securityscan.py  --arch x86 \
 #                         --config /boot/config-5.11.0-43-generic \
-#                         --policy policy.json   
+#                         --policy policy.json
 #                         --kernel \
 #                         --dmesg \
 #                         --proc \
@@ -317,7 +317,7 @@ class SecurityChecker():
 
             for root_proc_port in root_proc_ports:
                 self.print_row("%s" % root_proc_port)
-                
+
             self.print_grid()
 
 
@@ -469,7 +469,10 @@ class SecurityChecker():
             self.error_if_int_val_lt("/proc/sys/kernel/random/entropy_avail", 3000)
             # Make sure that ASLR is fully enabled
             self.error_if_int_val_not_eq("/proc/sys/kernel/randomize_va_space", 2)
-            self.error_if_int_val_not_eq("/proc/sys/kernel/kptr_restrict", 1)                        
+            self.error_if_int_val_not_eq("/proc/sys/kernel/kptr_restrict", 1)
+            self.error_if_int_val_not_eq("/proc/sys/kernel/dmesg_restrict", 1)
+            self.error_if_int_val_not_eq("/proc/sys/kernel/unprivileged_bpf_disabled", 1)
+            self.error_if_int_val_not_eq("/proc/sys/net/core/bpf_jit_harden", 2)
             self.error_if_int_val_not_eq("/proc/sys/fs/protected_hardlinks", 1)
             self.error_if_int_val_not_eq("/proc/sys/fs/protected_symlinks", 1)
             # Disable Magic SysRq key completely
@@ -488,9 +491,9 @@ class SecurityChecker():
             self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/rp_filter", 1)
             # Disables the acceptance of packets with the SSR option set in the IPv4 packet header
             self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/default/accept_source_route", 0)
-            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/accept_source_route", 0)    
-            # Log Martian packets 
-            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/log_martians", 1)    
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/accept_source_route", 0)
+            # Log Martian packets
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/log_martians", 1)
             # Disable IP forwarding
             self.error_if_int_val_not_eq("/proc/sys/net/ipv4/ip_forward", 0)
             self.error_if_int_val_not_eq("/proc/sys/net/ipv6/conf/default/forwarding", 0)
