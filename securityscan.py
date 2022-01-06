@@ -96,15 +96,26 @@ class SecurityChecker():
             self.console.print("\n")
 
 
-        def error_if_int_val_not_equal(self, file, val):
+        def error_if_int_val_not_eq(self, file, val):
             if not os.path.exists(file):
                 self.error("%s doesn't exist" % file)
                 return
-
             with open(file) as f:
                 fval = int(f.read())
                 if fval != val:
                     self.error("%s is %d, expected %d" % (file, fval, val))
+                else:
+                    self.info("%s is %d" % (file, fval))
+
+
+        def error_if_int_val_lt(self, file, val):
+            if not os.path.exists(file):
+                self.error("%s doesn't exist" % file)
+                return
+            with open(file) as f:
+                fval = int(f.read())
+                if fval < val:
+                    self.error("%s is %d, expected > %d" % (file, fval, val))
                 else:
                     self.info("%s is %d" % (file, fval))
 
@@ -454,36 +465,40 @@ class SecurityChecker():
             if os.path.exists("/dev/kmem"): self.error("/dev/kmem is available (allows direct kernel memory writing)")
             if os.path.exists("/proc/kcore"): self.error("/proc/kcore is available (exposes kernel text image layout)")
 
-            result = subprocess.run(['cat', '/proc/sys/kernel/random/entropy_avail'], stdout=subprocess.PIPE)
-            self.info("Available entropy in the primary entropy pool: %s" % result.stdout.decode("ascii").rstrip())
-
-            self.error_if_int_val_not_equal("/proc/sys/kernel/randomize_va_space", 2)
-            self.error_if_int_val_not_equal("/proc/sys/kernel/kptr_restrict", 1)
-            self.error_if_int_val_not_equal("/proc/sys/fs/protected_hardlinks", 1)
-            self.error_if_int_val_not_equal("/proc/sys/fs/protected_symlinks", 1)
+            # Make sure that entropy level in the primary entropy pool is greater than 3000
+            self.error_if_int_val_lt("/proc/sys/kernel/random/entropy_avail", 3000)
+            # Make sure that ASLR is fully enabled
+            self.error_if_int_val_not_eq("/proc/sys/kernel/randomize_va_space", 2)
+            self.error_if_int_val_not_eq("/proc/sys/kernel/kptr_restrict", 1)                        
+            self.error_if_int_val_not_eq("/proc/sys/fs/protected_hardlinks", 1)
+            self.error_if_int_val_not_eq("/proc/sys/fs/protected_symlinks", 1)
+            # Disable Magic SysRq key completely
+            self.error_if_int_val_not_eq("/proc/sys/kernel/sysrq", 0)
 
             # Network management
             # IPv4 ICMP redirect acceptance is disabled
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/conf/default/accept_redirects", 0)
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/conf/all/accept_redirects", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/default/accept_redirects", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/accept_redirects", 0)
             # IPv6 ICMP redirect acceptance is disabled
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv6/conf/default/accept_redirects", 0)
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv6/conf/all/accept_redirects", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv6/conf/default/accept_redirects", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv6/conf/all/accept_redirects", 0)
             # Don't send IPv4 ICMP redirects (unless a router)
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/conf/all/send_redirects", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/send_redirects", 0)
             # IP spoofing protection is enabled
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/conf/all/rp_filter", 1)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/rp_filter", 1)
             # Disables the acceptance of packets with the SSR option set in the IPv4 packet header
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/conf/default/accept_source_route", 0)
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/conf/all/accept_source_route", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/default/accept_source_route", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/accept_source_route", 0)    
+            # Log Martian packets 
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/conf/all/log_martians", 1)    
             # Disable IP forwarding
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/ip_forward", 0)
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv6/conf/default/forwarding", 0)
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv6/conf/all/forwarding", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/ip_forward", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv6/conf/default/forwarding", 0)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv6/conf/all/forwarding", 0)
             # Enable TCP synccookies
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/tcp_syncookies", 1)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/tcp_syncookies", 1)
             # Ignore ICMP echo (ping) requests
-            self.error_if_int_val_not_equal("/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts", 1)
+            self.error_if_int_val_not_eq("/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts", 1)
 
             # User management
             result = subprocess. Popen(['grep', "-v", ':x:', "/etc/passwd"], stdout=subprocess.PIPE)
