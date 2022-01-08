@@ -1,7 +1,7 @@
 # Linux Security Hardening Scanning Tool
 ## Introduction ##
 **securityscan.py** is a tool written in Python and checks the followig Linux security hardening options:
-* checks the Linux kernel config options (according to the list given by [the Kernel Self Protection Project](https://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project)). The black list and other configuration options are configurable in policy.json
+* checks the Linux kernel config options (according to the list given by [the Kernel Self Protection Project](https://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project)). The options are configurable in *policy.json*
 * checks loaded kernel modules
   * shows the number of dynamically loaded modules
   * alerts if blacklisted modules are loaded
@@ -17,7 +17,12 @@
   * "*/dev/kmem*" and "*/proc/kcore*" are disabled
   * ASLR (Address Space Layout Randomization) settings ("*/proc/sys/kernel/randomize_va_space*")
   * kptr_restrict setting for kernel pointer leak mitigation ("*/proc/sys/kernel/kptr_restrict*")
-  * entropy in the primary entropy pool ("*/proc/sys/kernel/random/entropy_avail*")
+  * Magic SysRq key is disabled
+  * Unprivileged access to the dmesg log is restricted
+  * Protected hardlinks and softlinks are enabled
+  * Unprivileged calls to bpf() are disabled
+  * Hardening for the BPF JIT compiler is enabled for mitigating JIT spraying
+  * Entropy in the primary entropy pool ("*/proc/sys/kernel/random/entropy_avail*")
 * Network security hardening checks
     
     IPv4 ICMP redirect acceptance is disabled
@@ -55,18 +60,18 @@
 
 ## Setup
 
-      $ sudo pip3 install unicorn psutil pyopenssl python-dateutil pwntools rich 
+    $ sudo pip3 install unicorn psutil pyopenssl python-dateutil pwntools 
 
 ## Usage
-      usage: securityscan.py [-h] --arch ARCH --config CONFIG --policy POLICY
-                             [--kernel] [--dmesg] [--proc] [--exec] [--vuln]
-                             [--cert] [--sys]
-      optional arguments:
-    
+    usage: securityscan.py [-h] --arch ARCH --config CONFIG --policy POLICY --output OUTPUT
+                          [--kernel] [--dmesg] [--proc] [--exec] [--vuln] [--cert] [--sys]
+
+    optional arguments:
       -h, --help       show this help message and exit
       --arch ARCH      Architecture, x86, arm64 or arm
       --config CONFIG  Kernel config file
       --policy POLICY  Policy file
+      --output OUTPUT  Outpuf file (JSON format)
       --kernel         Run kernel checks
       --dmesg          Run dmesg checks
       --proc           Run process checks
@@ -75,14 +80,15 @@
       --cert           Run X.509 certificate checks
       --sys            Run system checks
 
+
 ## Sample usage ##
 
-      $ sudo ./securityscan.py  --arch x86 --config /boot/config-5.11.0-43-generic --policy policy.json  --kernel --dmesg --proc --exec --vuln --cert --sys
+    $ sudo ./securityscan.py  --arch x86 --config /boot/config-5.11.0-43-generic --policy policy.json --output test.json --kernel --dmesg --proc --exec --vuln --cert --sys
 
 ## Sample usage screenshot
 
-![Screenshot from 2022-01-03 19-01-54](https://user-images.githubusercontent.com/5366714/147969353-6c29ee38-1ef1-488c-b8dc-6bcdbb5cfdeb.png)
-)
+![Screenshot from 2022-01-08 22-51-43](https://user-images.githubusercontent.com/5366714/148659651-d0865840-2a26-4b45-ab4c-c881c69815fa.png)
+
 
 ## The relevant links ##
 * [Kernel Self Protection Project](https://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project)
@@ -93,4 +99,4 @@
 * [GitHub - a13xp0p0v/Linux Kernel Defense Map](https://github.com/a13xp0p0v/linux-kernel-defence-map)
 * [GitHub - a13xp0p0v/kconfig-hardened-check: A tool for checking the security hardening options of the Linux kernel](https://github.com/a13xp0p0v/kconfig-hardened-check)
 * [SUSE Linux Enterprise Server 12 SP4 - Hardening Guide](https://documentation.suse.com/sles/12-SP4/pdf/book-hardening_color_en.pdf)
-
+* [The Linux Kernel documentation](https://www.kernel.org/doc/html/latest/index.html)

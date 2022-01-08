@@ -1,15 +1,15 @@
 #!/usr/bin/python3
 ###############################################################################
 #
-# usage: securityscan.py [-h] --arch ARCH --config CONFIG --policy POLICY
-#                        [--kernel] [--dmesg] [--proc] [--exec] [--vuln]
-#                        [--cert] [--sys]
+# usage: securityscan.py [-h] --arch ARCH --config CONFIG --policy POLICY --output OUTPUT [--kernel] [--dmesg]
+#                        [--proc] [--exec] [--vuln] [--cert] [--sys]
 #
 # optional arguments:
 #   -h, --help       show this help message and exit
 #   --arch ARCH      Architecture, x86, arm64 or arm
 #   --config CONFIG  Kernel config file
 #   --policy POLICY  Policy file
+#   --output OUTPUT  Outpuf file (JSON format)
 #   --kernel         Run kernel checks
 #   --dmesg          Run dmesg checks
 #   --proc           Run process checks
@@ -21,7 +21,8 @@
 # Sample usage:
 # sudo ./securityscan.py  --arch x86 \
 #                         --config /boot/config-5.11.0-43-generic \
-#                         --policy policy.json
+#                         --policy policy.json \
+#                         --output test.json \
 #                         --kernel \
 #                         --dmesg \
 #                         --proc \
@@ -45,13 +46,7 @@ import subprocess
 from pwn import *
 from dateutil import parser
 from pathlib import Path
-from rich.table import Table
-from rich.console import Console
-from rich import print, style
-from rich.panel import Panel
 
-# See http://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project/Recommended_Settings
-# for the recommended and black listed kernel config options
 
 def exists(file):
     if not os.path.exists(file):
@@ -65,35 +60,36 @@ class SecurityChecker():
             self.arch = arch
             self.config = config
             self.policy = policy
-            self.console = Console()
+            self.output = {}
 
 
         def error(self, msg):
-            self.grid.add_row("[red]ERROR", msg)
+            print("ERROR:   %s" % msg)
+            if not 'error' in self.output[self.group]:
+                self.output[self.group]['error'] = []
+            self.output[self.group]['error'].append(msg)
 
 
         def info(self, msg):
-            self.grid.add_row("[green]INFO", msg)
-
-
-        def print_row(self, msg):
-            self.grid.add_row("", msg)
+            print("INFO:    %s" % msg)
+            if not 'info' in self.output[self.group]:
+                self.output[self.group]['info'] = []
+            self.output[self.group]['info'].append(msg)
 
 
         def warning(self, msg):
-            self.grid.add_row("[yellow]WARNING", msg)
+            print("WARNING: %s" % msg)
+            if not 'warning' in self.output[self.group]:
+                self.output[self.group]['warning'] = []
+            self.output[self.group]['warning'].append(msg)
 
 
-        def title(self, msg):
-            self.grid = Table.grid(expand=True)
-            self.grid.add_column(width=10)
-            self.grid.add_column()
-            self.grid.add_row("", msg.upper(), style="bold")
-
-
-        def print_grid(self):
-            self.console.print(self.grid)
-            self.console.print("\n")
+        def title(self, group, msg):
+            if group != None:
+                self.group = group
+                if not self.group in self.output:
+                    self.output[self.group] = {}
+            print("\n------------o %s o------------" % msg)
 
 
         def error_if_int_val_not_eq(self, file, val):
@@ -141,10 +137,9 @@ class SecurityChecker():
                 notbefore_fmt = notbefore.strftime('%Y-%m-%d %H:%M:%S')
                 notafter_fmt  = notafter.strftime('%Y-%m-%d %H:%M:%S')
 
-                self.grid.add_row("", "")
-                self.grid.add_row("File", "%s" % file)
-                self.grid.add_row("Issuer", "%s" % cert_issuer.commonName)
-                self.grid.add_row("Subject", "%s" % cert_subject.commonName)
+                print("   File: %s" % file)
+                print("   Issuer: %s" % cert_issuer.commonName)
+                print("   Subject: %s" % cert_subject.commonName)
 
                 key_type = ""
                 if cert_parser.get_pubkey().type() == OpenSSL.crypto.TYPE_RSA:
@@ -158,15 +153,15 @@ class SecurityChecker():
                 else:
                     key_type = "unknown"
 
-                self.grid.add_row("Key type", "%s" % key_type)
-                self.grid.add_row("Key size", "%s" % cert_parser.get_pubkey().bits())
-                self.grid.add_row("Validity", "%s - %s" % (notbefore_fmt, notafter_fmt))
+                print("   Key type: %s" % key_type)
+                print("   Key size: %s" % cert_parser.get_pubkey().bits())
+                print("   Validity: %s - %s\n" % (notbefore_fmt, notafter_fmt))
             except:
                 pass
 
 
         def check_kernel(self):
-            self.title("Scanning kernel config options")
+            self.title("kernel", "Scanning kernel config options")
             mod_count = 0
             mod_list = []
             lines = []
@@ -199,7 +194,6 @@ class SecurityChecker():
                     if  not line in lines:
                         self.warning(line  + " is recommended but not defined")
 
-
             modtmp = tempfile.NamedTemporaryFile(prefix="mod.log.").name
             cmd = "lsmod > " + str(modtmp)
             os.system(cmd)
@@ -218,11 +212,10 @@ class SecurityChecker():
                     if m: self.error("Detected dynamically loaded blacklisted module = %s " % bl_mod)
 
             os.remove(modtmp)
-            self.print_grid()
 
 
         def check_dmesg(self):
-            self.title("Scanning dmesg messages")
+            self.title("dmesg", "Scanning dmesg messages")
             dmtmp = tempfile.NamedTemporaryFile(prefix="dmesg.log.").name
             cmd = "dmesg > " + str(dmtmp)
             os.system(cmd)
@@ -255,11 +248,10 @@ class SecurityChecker():
                     if match: self.error ("Detected process " + match.group(2) + " with executable stack")
 
             os.remove(dmtmp)
-            self.print_grid()
 
 
         def check_processes(self):
-            self.title("Scanning processes")
+            self.title("process", "Scanning processes")
             # root processes
             proc_count = 0
             root_proc_list = []
@@ -305,7 +297,7 @@ class SecurityChecker():
             self.warning("List of the ports being listened:")
             for con in connections:
                 if con.status == 'LISTEN':
-                    self.print_row("%s(%s)" % (psutil.Process(con.pid).name(), con.laddr.port))
+                    print("   %s(%s)" % (psutil.Process(con.pid).name(), con.laddr.port))
 
             self.warning("Root processes listening ports")
             for con in connections:
@@ -316,13 +308,11 @@ class SecurityChecker():
                             root_proc_ports.append(root_proc_port)
 
             for root_proc_port in root_proc_ports:
-                self.print_row("%s" % root_proc_port)
-
-            self.print_grid()
+                print("   %s" % root_proc_port)
 
 
         def check_executables(self):
-            self.title("Scanning binaries")
+            self.title("executables", "Scanning executables")
 
             nonpie = []
             noncanary = []
@@ -351,30 +341,43 @@ class SecurityChecker():
                     pass
 
             if len(nonpie) != 0:
-                self.warning("[yellow]Non-PIE binaries:")
-                for binary in nonpie: self.print_row("%s" % binary)
+                self.warning("%d non-PIE binaries" % len(nonpie))
+                self.output['executables']['nonpie'] = []
+                for binary in nonpie:
+                    self.output['executables']['nonpie'].append(binary)
+                    print("   %s" % binary)
 
             if len(noncanary) != 0:
-                self.warning("[yellow]Non-stack canary binaries:")
-                for binary in noncanary: self.print_row("%s" % binary)
+                self.output['executables']['noncanary'] = []
+                self.warning("%d non-stack canary binaries" % len(noncanary))
+                for binary in noncanary:
+                    self.output['executables']['noncanary'].append(binary)
+                    print("   %s" % binary)
 
             if len(nonrelro) != 0:
-                self.warning("[yellow]Non-relro binaries")
-                for binary in nonrelro: self.print_row("%s" % binary)
+                self.output['executables']['nonrelro'] = []
+                self.warning("%d non-relro binaries" % len(nonrelro))
+                for binary in nonrelro:
+                    self.output['executables']['nonrelro'].append(binary)
+                    print("   %s" % binary)
 
             if len(nonfortify) != 0:
-                self.warning("[yellow]Non-fortify binaries")
-                for binary in nonfortify: self.print_row("%s" % binary)
+                self.output['executables']['nonfortify'] = []
+                self.warning("%d non-fortify binaries" % len(nonfortify))
+                for binary in nonfortify: 
+                    self.output['executables']['nonfortify'].append(binary)
+                    print("   %s" % binary)
 
             if len(execstack) != 0:
-                self.warning("[yellow]Binaries with executable stack")
-                for binary in execstack: self.print_row("%s" % binary)
-
-            self.print_grid()
+                self.output['executables']['execstack'] = []
+                self.warning("%d binaries with executable stack" % len(execstack))
+                for binary in execstack:
+                    self.output['executables']['execstack'].append(binary)
+                    print("   %s" % binary)
 
 
         def check_vulnerabilities(self):
-            self.title("Scanning microarchitectural vulnerabilities")
+            self.title("vulnerabilities", "Scanning microarchitectural vulnerabilities")
             folder = "/sys/devices/system/cpu/vulnerabilities/"
             vultmp = tempfile.NamedTemporaryFile(prefix="vul.log.").name
 
@@ -390,11 +393,9 @@ class SecurityChecker():
             else:
                 self.warning("Cannot locate %s" % folder)
 
-            self.print_grid()
-
 
         def check_certificates(self):
-            self.title("Scanning X.509 certificates")
+            self.title("certificates", "Scanning X.509 certificates")
             cert_list = []
             certs_to_expire = []
             certs_expired = []
@@ -441,23 +442,29 @@ class SecurityChecker():
                 self.info("No certificates found")
 
             if len(certs_to_expire) > 0:
-                self.warning("[yellow]X.509 certificates to expire within 1 year")
-                for cert in certs_to_expire: self.print_certificate(cert)
+                self.warning("%d X.509 certificates to expire within 1 year" % len(certs_to_expire))
+                self.output['certificates']['to_expire'] = []
+                for cert in certs_to_expire:
+                    self.output['certificates']['to_expire'].append(str(cert))
+                    self.print_certificate(cert)
 
             if len(certs_expired) > 0:
-                self.error("[red]Expired X.509 certificates")
-                for cert in certs_expired: self.print_certificate(cert)
+                self.error("%d expired X.509 certificates" % len(certs_expired))
+                self.output['certificates']['expired'] = []
+                for cert in certs_expired:
+                    self.output['certificates']['expired'].append(str(cert))
+                    self.print_certificate(cert)
 
             if len(certs_with_weak_keys) > 0:
-                self.error("[red]X.509 certificates with weak keys")
-                for cert in certs_with_weak_keys: self.print_certificate(cert)
-            self.print_grid()
+                self.error("%d X.509 certificates with weak keys" % len(certs_with_weak_keys))
+                self.output['certificates']['with_weak_key'] = []
+                for cert in certs_with_weak_keys:
+                    self.output['certificates']['with_weak_key'].append(str(cert))
+                    self.print_certificate(cert)
 
 
         def check_system(self):
-            # The checks are done based on the information given on
-            # https://documentation.suse.com/sles/15-SP2/pdf/book-security_color_en.pdf
-            self.title("Scanning system hardening")
+            self.title("system", "Scanning system hardening")
 
             result = subprocess.run(['uname', '-a'], stdout=subprocess.PIPE)
             self.info("%s" % result.stdout.decode("ascii").rstrip())
@@ -521,7 +528,16 @@ class SecurityChecker():
                         if default_port.match(line):  self.warning("SSH default port is 22")
                         if pwd_auth.match(line):  self.warning("SSH password based authentication enabled")
 
-            self.print_grid()
+
+        def generate_output_file(self, fname):
+            self.title(None, "Generating outputfile in JSON format")
+            try:
+                with open(fname, 'w') as fh:
+                    json_data = json.dumps(self.output)
+                    fh.write(json_data)
+                    print("INFO:    Generated output file \"%s\"" % fname)
+            except:
+                print("ERROR:   Cannot create output file \"%s\"" % fname)
 
 
 def main():
@@ -531,6 +547,7 @@ def main():
     parser.add_argument("--arch",   dest='arch',   required=True, help="Architecture, x86, arm64 or arm")
     parser.add_argument("--config", dest='config', required=True, help="Kernel config file")
     parser.add_argument("--policy", dest='policy', required=True, help="Policy file")
+    parser.add_argument("--output", dest='output', required=True, help="Outpuf file (JSON format)")
     parser.add_argument("--kernel", dest='kernel', help="Run kernel checks", action='store_true')
     parser.add_argument("--dmesg",  dest='dmesg',  help="Run dmesg checks", action='store_true')
     parser.add_argument("--proc",   dest='proc',   help="Run process checks", action='store_true')
@@ -545,7 +562,7 @@ def main():
     exists(args.policy)
     # Validate architecture
     if args.arch != "x86" and args.arch != "arm64" and args.arch != "arm":
-        print("ERROR: invalid architecrure. Select x86, arm64 or arm")
+        print("ERROR: invalid architecture. Select x86, arm64 or arm")
         sys.exit()
 
     sec = SecurityChecker(args.arch, args.config, args.policy)
@@ -558,6 +575,7 @@ def main():
     if args.cert:   sec.check_certificates()
     if args.sys:    sec.check_system()
 
+    sec.generate_output_file(args.output)
 
 if __name__ == "__main__":
     main()
