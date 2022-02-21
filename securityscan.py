@@ -364,7 +364,7 @@ class SecurityChecker():
             if len(nonfortify) != 0:
                 self.output['executables']['nonfortify'] = []
                 self.warning("%d non-fortify binaries" % len(nonfortify))
-                for binary in nonfortify: 
+                for binary in nonfortify:
                     self.output['executables']['nonfortify'].append(binary)
                     print("   %s" % binary)
 
@@ -512,8 +512,9 @@ class SecurityChecker():
 
             # User management
             result = subprocess. Popen(['grep', "-v", ':x:', "/etc/passwd"], stdout=subprocess.PIPE)
-            if result.communicate()[0].decode("ascii").rstrip() != "":
-                self.error("User accounts without password: %s" %  result.communicate()[0].decode("ascii").rstrip())
+            value = result.communicate()[0].decode("ascii").rstrip()
+            if value != "":
+                self.error("User accounts without password: %s" %  value)
 
             # ssh hardening
             ssh_config = "/etc/ssh/sshd_config"
@@ -540,6 +541,31 @@ class SecurityChecker():
                 print("ERROR:   Cannot create output file \"%s\"" % fname)
 
 
+        def check_selinux(self):
+            self.title("system", "Scanning SELinux setup")
+            selinux_enabled  = False
+            with open(self.config, 'r') as fhandle:
+                for line in fhandle.readlines():
+                    line = line.rstrip()
+                    if not line.startswith("#"):
+                        if line == "CONFIG_SECURITY_SELINUX=y":
+                            selinux_enabled  = True
+                            self.info("CONFIG_SECURITY_SELINUX is enabled")
+                        if line == "CONFIG_DEFAULT_SECURITY_SELINUX=y":
+                            self.info("CONFIG_DEFAULT_SECURITY_SELINUX is enabled")
+                        if line == "CONFIG_DEFAULT_SECURITY_SELINUX=y":
+                            self.warning("CONFIG_SECURITY_SELINUX_DEVELOP is enabled")
+
+            if selinux_enabled == False:
+                self.warning("SELINUX notenabled is enabled")
+                return
+
+            result = subprocess. Popen(['/usr/bin/sestatus'], stdout=subprocess.PIPE)
+            info_list = result.communicate()[0].decode("ascii").splitlines()
+            for info in info_list:
+                self.info(info)
+
+
 def main():
 
     # Handle commandline arguments
@@ -547,7 +573,7 @@ def main():
     parser.add_argument("--arch",   dest='arch',   required=True, help="Architecture, x86, arm64 or arm")
     parser.add_argument("--config", dest='config', required=True, help="Kernel config file")
     parser.add_argument("--policy", dest='policy', required=True, help="Policy file")
-    parser.add_argument("--output", dest='output', required=True, help="Outpuf file (JSON format)")
+    parser.add_argument("--output", dest='output', help="Outpuf file (JSON format)")
     parser.add_argument("--kernel", dest='kernel', help="Run kernel checks", action='store_true')
     parser.add_argument("--dmesg",  dest='dmesg',  help="Run dmesg checks", action='store_true')
     parser.add_argument("--proc",   dest='proc',   help="Run process checks", action='store_true')
@@ -555,6 +581,7 @@ def main():
     parser.add_argument("--vuln",   dest='vuln',   help="Run vulnerability checks", action='store_true')
     parser.add_argument("--cert",   dest='cert',   help="Run X.509 certificate checks", action='store_true')
     parser.add_argument("--sys",    dest='sys',    help="Run system checks", action='store_true')
+    parser.add_argument("--selinux",dest='selinux',  help="Run SELinux checks", action='store_true')
     args = parser.parse_args()
 
     # Check if input file exists
@@ -574,8 +601,9 @@ def main():
     if args.vuln:   sec.check_vulnerabilities()
     if args.cert:   sec.check_certificates()
     if args.sys:    sec.check_system()
+    if args.selinux: sec.check_selinux()
 
-    sec.generate_output_file(args.output)
+    if args.output: sec.generate_output_file(args.output)
 
 if __name__ == "__main__":
     main()
